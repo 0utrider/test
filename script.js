@@ -1,9 +1,8 @@
 // ---------- Data & helpers ----------
 
-// Internal baseline table as a fallback if no CSV is loaded.
-// This is intentionally simple and easy to swap out.
+// Internal baseline table as a fallback / canonical source.
+// EL, DC, income per day at success.
 const internalIncomeTable = [
-  // EL, DC, income per day at success (baseline)
   { el: 0, dc: 14, income: 0.5 },
   { el: 1, dc: 15, income: 1 },
   { el: 2, dc: 16, income: 2 },
@@ -16,177 +15,28 @@ const internalIncomeTable = [
   { el: 9, dc: 26, income: 30 }
 ];
 
-// Proficiency modifiers to DC and payout scaling.
-// These are intentionally generic; tweak to match your table.
-const proficiencyAdjustments = {
-  trained: { dcOffset: 0, payoutMult: 1.0 },
-  expert: { dcOffset: 2, payoutMult: 1.25 },
-  master: { dcOffset: 4, payoutMult: 1.5 },
-  legendary: { dcOffset: 6, payoutMult: 1.75 }
-};
+// HHST: Horizon Hunters: Storied Talent.
+// Used to adjust effective level for DC and income.
+const HHST_EL_OFFSET = 1;
 
-// HHST boon adjustments: modifies both DC and payout.
-const hhstAdjustments = {
-  dcOffset: -2,
-  payoutMult: 1.1
-};
-
-let activeIncomeTable = [...internalIncomeTable];
-let rows = [];
-const ROW_COUNT = 6;
-
-// ---------- DOM references ----------
-
-const lightModeToggle = document.getElementById("lightModeToggle");
-const hhstToggle = document.getElementById("hhstToggle");
-const effectiveLevelInput = document.getElementById("effectiveLevel");
-const proficiencySelect = document.getElementById("proficiencyTier");
-const daysInput = document.getElementById("daysEarnIncome");
-const targetDcDisplay = document.getElementById("targetDcDisplay");
-const dcSubLabel = document.getElementById("dcSubLabel");
-
-const csvInput = document.getElementById("csvInput");
-const csvError = document.getElementById("csvError");
-const csvPreviewEmpty = document.getElementById("csvPreviewEmpty");
-const csvPreviewTable = document.getElementById("csvPreviewTable");
-const csvPreviewBody = document.getElementById("csvPreviewBody");
-
-const rowsContainer = document.getElementById("rowsContainer");
-
-const summaryDays = document.getElementById("summaryDays");
-const summaryTotalGp = document.getElementById("summaryTotalGp");
-const summaryAvgGp = document.getElementById("summaryAvgGp");
-const summaryText = document.getElementById("summaryText");
-const copySummaryBtn = document.getElementById("copySummaryBtn");
-const copyBanner = document.getElementById("copyBanner");
-
-const scenarioNameInput = document.getElementById("scenarioName");
-const characterNameInput = document.getElementById("characterName");
-
-// ---------- Light mode ----------
-
-lightModeToggle.addEventListener("change", () => {
-  document.body.classList.toggle("light-mode", lightModeToggle.checked);
-});
-
-// ---------- CSV parsing ----------
-
-csvInput.addEventListener("change", handleCsvUpload);
-
-function handleCsvUpload(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const text = e.target.result;
-      const parsed = parseCsvFlexible(text);
-      if (!parsed || parsed.length === 0) {
-        throw new Error("No usable rows found in CSV.");
-      }
-      activeIncomeTable = parsed;
-      csvError.textContent = "";
-      renderCsvPreview(parsed);
-      updateTargetDc();
-      recalcAllRows();
-    } catch (err) {
-      console.error(err);
-      csvError.textContent = err.message || "Could not parse CSV.";
-      activeIncomeTable = [...internalIncomeTable];
-      renderCsvPreview([]);
-      updateTargetDc();
-      recalcAllRows();
-    }
-  };
-  reader.readAsText(file);
+// Result bands adjust modified EL for income lookup.
+function modifiedElFromResult(initialEl, resultBand) {
+  switch (resultBand) {
+    case "crit-success":
+      return initialEl + 1;
+    case "success":
+      return initialEl;
+    case "fail":
+      return Math.max(0, initialEl - 2);
+    case "crit-fail":
+      return Math.max(0, initialEl - 4);
+    default:
+      return initialEl;
+  }
 }
 
-// Flexible CSV parser: tries to detect EL, DC, result band, and income columns.
-function parseCsvFlexible(text) {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  if (lines.length === 0) return [];
-
-  const headerLine = lines[0];
-  const headerParts = headerLine.split(",").map((h) => h.trim().toLowerCase());
-
-  const elIndex = headerParts.findIndex((h) => ["el", "effective level", "level"].includes(h));
-  const dcIndex = headerParts.findIndex((h) => h === "dc" || h === "target dc");
-  const resultIndex = headerParts.findIndex((h) =>
-    ["result", "band", "result band", "outcome"].includes(h)
-  );
-  const incomeIndex = headerParts.findIndex((h) =>
-    ["income", "gp", "gold", "earn income"].includes(h)
-  );
-
-  // We only require EL, DC, and income; result band is optional.
-  if (elIndex === -1 || dcIndex === -1 || incomeIndex === -1) {
-    throw new Error(
-      "CSV must contain columns for EL, DC, and Income (per day). Result band is optional."
-    );
-  }
-
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split(",").map((p) => p.trim());
-    if (parts.length === 0 || parts.every((p) => p === "")) continue;
-
-    const el = Number(parts[elIndex]);
-    const dc = Number(parts[dcIndex]);
-    const income = Number(parts[incomeIndex]);
-    const band = resultIndex !== -1 ? parts[resultIndex] : "";
-
-    if (Number.isNaN(el) || Number.isNaN(dc) || Number.isNaN(income)) {
-      // Skip malformed rows but don't kill the whole file.
-      continue;
-    }
-
-    rows.push({
-      el,
-      dc,
-      income,
-      band
-    });
-  }
-
-  // Sort by EL ascending for sanity.
-  rows.sort((a, b) => a.el - b.el);
-  return rows;
-}
-
-function renderCsvPreview(table) {
-  csvPreviewBody.innerHTML = "";
-  if (!table || table.length === 0) {
-    csvPreviewEmpty.style.display = "block";
-    csvPreviewTable.style.display = "none";
-    return;
-  }
-
-  csvPreviewEmpty.style.display = "none";
-  csvPreviewTable.style.display = "table";
-
-  const maxRows = 8;
-  table.slice(0, maxRows).forEach((row) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${row.el}</td>
-      <td>${row.dc}</td>
-      <td>${row.band || "—"}</td>
-      <td>${row.income}</td>
-    `;
-    csvPreviewBody.appendChild(tr);
-  });
-}
-
-// ---------- DC & income lookup ----------
-
-function getBaseRowForEl(el) {
-  // Find exact EL match; if not found, use nearest lower, then nearest higher.
-  const sorted = [...activeIncomeTable].sort((a, b) => a.el - b.el);
+function getRowForEl(el) {
+  const sorted = [...internalIncomeTable].sort((a, b) => a.el - b.el);
   let exact = sorted.find((r) => r.el === el);
   if (exact) return exact;
 
@@ -197,175 +47,6 @@ function getBaseRowForEl(el) {
     if (r.el > el && !higher) higher = r;
   }
   return lower || higher || sorted[0];
-}
-
-function computeTargetDc() {
-  const el = Number(effectiveLevelInput.value);
-  if (Number.isNaN(el)) return null;
-
-  const baseRow = getBaseRowForEl(el);
-  if (!baseRow) return null;
-
-  const proficiencyKey = proficiencySelect.value || "trained";
-  const profAdj = proficiencyAdjustments[proficiencyKey] || proficiencyAdjustments.trained;
-
-  let dc = baseRow.dc + profAdj.dcOffset;
-
-  if (hhstToggle.checked) {
-    dc += hhstAdjustments.dcOffset;
-  }
-
-  return {
-    dc,
-    baseRow,
-    proficiencyKey
-  };
-}
-
-function updateTargetDc() {
-  const result = computeTargetDc();
-  if (!result) {
-    targetDcDisplay.textContent = "—";
-    dcSubLabel.textContent = "Awaiting inputs…";
-    return;
-  }
-
-  targetDcDisplay.textContent = result.dc;
-  const el = Number(effectiveLevelInput.value);
-  const profLabel = result.proficiencyKey.charAt(0).toUpperCase() + result.proficiencyKey.slice(1);
-  const hhstLabel = hhstToggle.checked ? "HHST boon applied" : "no boon";
-  dcSubLabel.textContent = `EL ${el}, ${profLabel}, ${hhstLabel}`;
-}
-
-// ---------- Rows & progressive reveal ----------
-
-function initRows() {
-  rowsContainer.innerHTML = "";
-  rows = [];
-
-  const totalDays = Number(daysInput.value) || 1;
-  const daysPerRow = Math.max(1, Math.floor(totalDays / ROW_COUNT));
-  let remaining = totalDays;
-
-  for (let i = 0; i < ROW_COUNT; i++) {
-    const rowDays = i === ROW_COUNT - 1 ? remaining : Math.min(daysPerRow, remaining);
-    remaining -= rowDays;
-
-    const rowEl = document.createElement("div");
-    rowEl.className = "row";
-    if (i > 0) rowEl.classList.add("hidden-row");
-    if (i === 0) rowEl.classList.add("active-row");
-
-    const dayLabel =
-      rowDays === 1
-        ? `Day ${computeRowDayRangeStart(i, daysPerRow) + 1}`
-        : `Days ${computeRowDayRangeStart(i, daysPerRow) + 1}–${
-            computeRowDayRangeStart(i, daysPerRow) + rowDays
-          }`;
-
-    rowEl.innerHTML = `
-      <div class="row-label">${dayLabel}</div>
-      <div>
-        <input type="number" class="row-check-input" placeholder="Check total" />
-      </div>
-      <div class="row-result-band"></div>
-      <div class="row-income">—</div>
-    `;
-
-    const checkInput = rowEl.querySelector(".row-check-input");
-    const bandEl = rowEl.querySelector(".row-result-band");
-    const incomeEl = rowEl.querySelector(".row-income");
-
-    const rowObj = {
-      index: i,
-      element: rowEl,
-      checkInput,
-      bandEl,
-      incomeEl,
-      days: rowDays
-    };
-
-    checkInput.addEventListener("input", () => handleRowInput(rowObj));
-
-    rows.push(rowObj);
-    rowsContainer.appendChild(rowEl);
-  }
-
-  recalcAllRows();
-}
-
-function computeRowDayRangeStart(rowIndex, daysPerRow) {
-  return rowIndex * daysPerRow;
-}
-
-function handleRowInput(row) {
-  const value = Number(row.checkInput.value);
-  if (Number.isNaN(value)) {
-    clearRow(row);
-    lockRowsAfter(row.index);
-    updateSummary();
-    return;
-  }
-
-  const dcInfo = computeTargetDc();
-  if (!dcInfo) {
-    clearRow(row);
-    lockRowsAfter(row.index);
-    updateSummary();
-    return;
-  }
-
-  const band = classifyResultBand(value, dcInfo.dc);
-  const income = computeRowIncome(dcInfo, band, row.days);
-
-  applyRowDisplay(row, band, income);
-  unlockNextRowIfNeeded(row.index);
-  updateSummary();
-}
-
-function classifyResultBand(checkTotal, dc) {
-  const diff = checkTotal - dc;
-  if (diff >= 10) return "crit-success";
-  if (diff >= 0) return "success";
-  if (diff <= -10) return "crit-fail";
-  return "fail";
-}
-
-function computeRowIncome(dcInfo, band, days) {
-  const baseRow = dcInfo.baseRow;
-  const proficiencyKey = dcInfo.proficiencyKey;
-  const profAdj = proficiencyAdjustments[proficiencyKey] || proficiencyAdjustments.trained;
-
-  let perDay = baseRow.income * profAdj.payoutMult;
-
-  if (hhstToggle.checked) {
-    perDay *= hhstAdjustments.payoutMult;
-  }
-
-  // Adjust by band.
-  switch (band) {
-    case "crit-success":
-      perDay *= 2;
-      break;
-    case "success":
-      perDay *= 1;
-      break;
-    case "fail":
-      perDay *= 0.5;
-      break;
-    case "crit-fail":
-      perDay = 0;
-      break;
-  }
-
-  const total = perDay * days;
-  return Math.round(total * 100) / 100;
-}
-
-function applyRowDisplay(row, band, income) {
-  row.bandEl.textContent = bandLabel(band);
-  row.bandEl.className = "row-result-band " + bandClass(band);
-  row.incomeEl.textContent = income.toFixed(2);
 }
 
 function bandLabel(band) {
@@ -379,170 +60,386 @@ function bandLabel(band) {
     case "crit-fail":
       return "Critical failure";
     default:
-      return "—";
-  }
-}
-
-function bandClass(band) {
-  switch (band) {
-    case "crit-success":
-      return "row-result-band--crit-success";
-    case "success":
-      return "row-result-band--success";
-    case "fail":
-      return "row-result-band--fail";
-    case "crit-fail":
-      return "row-result-band--crit-fail";
-    default:
       return "";
   }
 }
 
-function clearRow(row) {
-  row.bandEl.textContent = "";
-  row.bandEl.className = "row-result-band";
-  row.incomeEl.textContent = "—";
-}
+// ---------- DOM references ----------
 
-function unlockNextRowIfNeeded(index) {
-  if (index >= rows.length - 1) return;
-  const current = rows[index];
-  if (!current.checkInput.value) return;
+const lightModeToggle = document.getElementById("lightModeToggle");
+const downtimeDateInput = document.getElementById("downtimeDate");
+const scenarioNumberInput = document.getElementById("scenarioNumber");
+const charactersContainer = document.getElementById("charactersContainer");
+const summaryText = document.getElementById("summaryText");
+const appendixToggle = document.getElementById("appendixToggle");
+const appendixContent = document.getElementById("appendixContent");
+const incomeTableBody = document.getElementById("incomeTableBody");
 
-  const next = rows[index + 1];
-  next.element.classList.remove("hidden-row");
-  next.element.classList.add("active-row");
-}
+// ---------- Light mode ----------
 
-function lockRowsAfter(index) {
-  for (let i = index + 1; i < rows.length; i++) {
-    rows[i].element.classList.add("hidden-row");
-    rows[i].element.classList.remove("active-row");
-    rows[i].checkInput.value = "";
-    clearRow(rows[i]);
-  }
-}
-
-// Recalculate all rows (e.g., when DC or table changes).
-function recalcAllRows() {
-  rows.forEach((row, idx) => {
-    const value = Number(row.checkInput.value);
-    if (Number.isNaN(value)) {
-      clearRow(row);
-      if (idx > 0) {
-        row.element.classList.add("hidden-row");
-        row.element.classList.remove("active-row");
-      }
-      return;
-    }
-    handleRowInput(row);
-  });
-
-  // Ensure first row is visible.
-  if (rows[0]) {
-    rows[0].element.classList.remove("hidden-row");
-    rows[0].element.classList.add("active-row");
-  }
-}
-
-// ---------- Summary & copy ----------
-
-function updateSummary() {
-  const totalDays = rows.reduce((sum, r) => sum + (r.days || 0), 0);
-  let usedDays = 0;
-  let totalIncome = 0;
-
-  rows.forEach((row) => {
-    const income = Number(row.incomeEl.textContent);
-    if (!Number.isNaN(income) && income > 0) {
-      usedDays += row.days;
-      totalIncome += income;
-    }
-  });
-
-  summaryDays.textContent = usedDays || "—";
-  summaryTotalGp.textContent = totalIncome ? totalIncome.toFixed(2) : "—";
-  summaryAvgGp.textContent =
-    usedDays && totalIncome ? (totalIncome / usedDays).toFixed(2) : "—";
-
-  summaryText.textContent = buildSummaryText(usedDays, totalIncome);
-}
-
-function buildSummaryText(usedDays, totalIncome) {
-  const scenario = scenarioNameInput.value || "(scenario not specified)";
-  const character = characterNameInput.value || "(character not specified)";
-  const el = effectiveLevelInput.value || "—";
-  const prof = proficiencySelect.value || "trained";
-  const boon = hhstToggle.checked ? "HHST boon active" : "no boon";
-
-  let lines = [];
-  lines.push(`Downtime recap for ${character}`);
-  lines.push(`Scenario: ${scenario}`);
-  lines.push(`Effective level: ${el}, proficiency: ${prof}, ${boon}`);
-  lines.push("");
-
-  rows.forEach((row) => {
-    const income = Number(row.incomeEl.textContent);
-    if (Number.isNaN(income) || income <= 0) return;
-    const label = row.element.querySelector(".row-label").textContent;
-    const band = row.bandEl.textContent || "—";
-    lines.push(`${label}: ${band}, ${income.toFixed(2)} gp total`);
-  });
-
-  lines.push("");
-  lines.push(
-    `Total: ${usedDays || 0} day(s) of Earn Income for ${totalIncome.toFixed(
-      2
-    )} gp (${usedDays ? (totalIncome / usedDays).toFixed(2) : "0.00"} gp/day)`
-  );
-
-  return lines.join("\n");
-}
-
-copySummaryBtn.addEventListener("click", async () => {
-  const text = summaryText.textContent || "";
-  if (!text.trim()) return;
-
-  try {
-    await navigator.clipboard.writeText(text);
-    showCopyBanner();
-  } catch (err) {
-    console.error("Clipboard error:", err);
-  }
+lightModeToggle.addEventListener("change", () => {
+  document.body.classList.toggle("light-mode", lightModeToggle.checked);
 });
 
-function showCopyBanner() {
-  copyBanner.style.display = "inline-flex";
-  setTimeout(() => {
-    copyBanner.style.display = "none";
-  }, 2200);
-}
+// ---------- Scenario sanitization ----------
 
-// ---------- Wiring & initial state ----------
+scenarioNumberInput.addEventListener("input", () => {
+  const allowed = /[A-Za-z0-9\-(): ]/g;
+  const matches = scenarioNumberInput.value.match(allowed);
+  scenarioNumberInput.value = matches ? matches.join("") : "";
+  updateSummary();
+});
 
-function wireConfigListeners() {
-  [effectiveLevelInput, proficiencySelect, hhstToggle].forEach((el) => {
-    el.addEventListener("change", () => {
-      updateTargetDc();
-      recalcAllRows();
+// ---------- Characters ----------
+
+const MAX_CHARACTERS = 7;
+const characters = [];
+
+function createCharacterCard(index) {
+  const card = document.createElement("div");
+  card.className = "character-card";
+  if (index > 0) card.classList.add("hidden");
+
+  const header = document.createElement("div");
+  header.className = "character-header";
+  header.innerHTML = `<div class="character-title">Character ${index + 1}</div>`;
+  card.appendChild(header);
+
+  const gridTop = document.createElement("div");
+  gridTop.className = "character-grid";
+
+  // Name
+  const nameGroup = document.createElement("div");
+  nameGroup.className = "field-group";
+  nameGroup.innerHTML = `
+    <label>Name</label>
+    <input type="text" class="char-name" placeholder="Character name" />
+  `;
+  gridTop.appendChild(nameGroup);
+
+  // Character level
+  const levelGroup = document.createElement("div");
+  levelGroup.className = "field-group";
+  levelGroup.innerHTML = `
+    <label>Character Level</label>
+    <input type="number" class="char-level" min="1" max="20" value="1" />
+  `;
+  gridTop.appendChild(levelGroup);
+
+  // Proficiency radios
+  const profGroup = document.createElement("div");
+  profGroup.className = "field-group prof-group";
+  profGroup.innerHTML = `<label>Proficiency</label>`;
+  const profOptions = document.createElement("div");
+  profOptions.className = "prof-options";
+
+  const profs = [
+    { key: "trained", label: "T" },
+    { key: "expert", label: "E" },
+    { key: "master", label: "M" },
+    { key: "legendary", label: "L" }
+  ];
+
+  const profInputs = {};
+
+  profs.forEach((p) => {
+    const id = `char${index}_prof_${p.key}`;
+    const pill = document.createElement("label");
+    pill.className = "prof-pill";
+    pill.innerHTML = `
+      <input type="radio" name="char${index}_prof" id="${id}" value="${p.key}" />
+      ${p.label}
+    `;
+    profOptions.appendChild(pill);
+    profInputs[p.key] = { pill, input: pill.querySelector("input") };
+  });
+
+  // default to trained
+  profInputs.trained.input.checked = true;
+  profInputs.trained.pill.classList.add("active");
+
+  profGroup.appendChild(profOptions);
+  gridTop.appendChild(profGroup);
+
+  // HHST
+  const hhstGroup = document.createElement("div");
+  hhstGroup.className = "field-group";
+  hhstGroup.innerHTML = `
+    <label class="toggle">
+      <input type="checkbox" class="char-hhst" />
+      <span class="toggle-indicator"></span>
+      <span class="toggle-label">Horizon Hunters: Storied Talent</span>
+    </label>
+  `;
+  gridTop.appendChild(hhstGroup);
+
+  card.appendChild(gridTop);
+
+  // DC badge
+  const dcWrapper = document.createElement("div");
+  dcWrapper.className = "dc-badge-wrapper";
+  dcWrapper.innerHTML = `
+    <div class="dc-badge">
+      <div class="dc-label">Target DC</div>
+      <div class="dc-value char-dc">—</div>
+    </div>
+  `;
+  card.appendChild(dcWrapper);
+
+  // Bottom grid: Result, Days, Income
+  const gridBottom = document.createElement("div");
+  gridBottom.className = "character-grid-bottom";
+
+  const resultGroup = document.createElement("div");
+  resultGroup.className = "field-group";
+  resultGroup.innerHTML = `
+    <label>Result</label>
+    <select class="result-select char-result">
+      <option value="">—</option>
+      <option value="crit-success">Critical success</option>
+      <option value="success">Success</option>
+      <option value="fail">Failure</option>
+      <option value="crit-fail">Critical failure</option>
+    </select>
+  `;
+  gridBottom.appendChild(resultGroup);
+
+  const daysGroup = document.createElement("div");
+  daysGroup.className = "field-group";
+  daysGroup.innerHTML = `
+    <label>Downtime Days</label>
+    <input type="number" class="char-days" min="1" max="24" />
+  `;
+  gridBottom.appendChild(daysGroup);
+
+  const incomeGroup = document.createElement("div");
+  incomeGroup.className = "field-group";
+  incomeGroup.innerHTML = `
+    <label>Earned Income</label>
+    <div class="income-display char-income">—</div>
+  `;
+  gridBottom.appendChild(incomeGroup);
+
+  card.appendChild(gridBottom);
+
+  charactersContainer.appendChild(card);
+
+  const nameInput = card.querySelector(".char-name");
+  const levelInput = card.querySelector(".char-level");
+  const hhstInput = card.querySelector(".char-hhst");
+  const dcDisplay = card.querySelector(".char-dc");
+  const resultSelect = card.querySelector(".char-result");
+  const daysInput = card.querySelector(".char-days");
+  const incomeDisplay = card.querySelector(".char-income");
+
+  // Proficiency pill behavior
+  Object.values(profInputs).forEach(({ pill, input }) => {
+    pill.addEventListener("click", () => {
+      Object.values(profInputs).forEach(({ pill: p }) => p.classList.remove("active"));
+      pill.classList.add("active");
+      input.checked = true;
+      // Proficiency is currently informational; DC is based on EL only.
+      updateCharacterDc(index);
+      updateCharacterIncome(index);
       updateSummary();
     });
   });
 
-  daysInput.addEventListener("change", () => {
-    initRows();
+  nameInput.addEventListener("input", () => {
+    handleCharacterVisibility();
     updateSummary();
   });
 
-  [scenarioNameInput, characterNameInput].forEach((el) => {
-    el.addEventListener("input", () => updateSummary());
+  [levelInput, hhstInput].forEach((el) => {
+    el.addEventListener("change", () => {
+      updateCharacterDc(index);
+      updateCharacterIncome(index);
+      updateSummary();
+    });
+  });
+
+  [resultSelect, daysInput].forEach((el) => {
+    el.addEventListener("change", () => {
+      updateCharacterIncome(index);
+      updateSummary();
+    });
+  });
+
+  characters.push({
+    index,
+    card,
+    nameInput,
+    levelInput,
+    hhstInput,
+    dcDisplay,
+    resultSelect,
+    daysInput,
+    incomeDisplay,
+    profInputs
+  });
+
+  // Initial DC
+  updateCharacterDc(index);
+}
+
+function handleCharacterVisibility() {
+  for (let i = 0; i < characters.length; i++) {
+    const current = characters[i];
+    const next = characters[i + 1];
+    if (!next) break;
+
+    const hasName = current.nameInput.value.trim().length > 0;
+    if (hasName) {
+      next.card.classList.remove("hidden");
+    } else {
+      next.card.classList.add("hidden");
+      clearCharacter(next.index);
+    }
+  }
+}
+
+function initialElForCharacter(char) {
+  const level = Number(char.levelInput.value);
+  if (Number.isNaN(level) || level <= 0) return null;
+  let el = level;
+  if (char.hhstInput.checked) {
+    el += HHST_EL_OFFSET;
+  }
+  return el;
+}
+
+function updateCharacterDc(index) {
+  const char = characters[index];
+  const initialEl = initialElForCharacter(char);
+  if (initialEl === null) {
+    char.dcDisplay.textContent = "—";
+    return;
+  }
+  const row = getRowForEl(initialEl);
+  char.dcDisplay.textContent = row.dc;
+}
+
+function updateCharacterIncome(index) {
+  const char = characters[index];
+  const name = char.nameInput.value.trim();
+  const days = Number(char.daysInput.value);
+  const resultBand = char.resultSelect.value;
+
+  if (!name || !resultBand || Number.isNaN(days) || days < 1 || days > 24) {
+    char.incomeDisplay.textContent = "—";
+    return;
+  }
+
+  const initialEl = initialElForCharacter(char);
+  if (initialEl === null) {
+    char.incomeDisplay.textContent = "—";
+    return;
+  }
+
+  const modEl = modifiedElFromResult(initialEl, resultBand);
+  const row = getRowForEl(modEl);
+  const perDay = row.income;
+  const total = perDay * days;
+  char.incomeDisplay.textContent = `${total.toFixed(2)} gp`;
+}
+
+function clearCharacter(index) {
+  const char = characters[index];
+  char.resultSelect.value = "";
+  char.daysInput.value = "";
+  char.incomeDisplay.textContent = "—";
+}
+
+// ---------- Summary ----------
+
+function buildSummary() {
+  const dateVal = downtimeDateInput.value || "";
+  const scenarioVal = scenarioNumberInput.value || "";
+  const headerLine = `${dateVal || "Date not set"} - ${scenarioVal || "Scenario not set"}`;
+
+  const lines = [headerLine];
+
+  characters.forEach((char) => {
+    const name = char.nameInput.value.trim();
+    const days = Number(char.daysInput.value);
+    const resultBand = char.resultSelect.value;
+    const incomeText = char.incomeDisplay.textContent || "";
+    if (!name || !resultBand || Number.isNaN(days) || days < 1 || days > 24) return;
+    if (!incomeText || incomeText === "—") return;
+
+    const initialEl = initialElForCharacter(char);
+    if (initialEl === null) return;
+    const modEl = modifiedElFromResult(initialEl, resultBand);
+
+    const band = bandLabel(resultBand);
+    const hhstTag = char.hhstInput.checked ? " (HHST)" : "";
+    const numericIncome = incomeText.replace(" gp", "");
+
+    // "Name: Success, EL = Y (HHST)     Z gp"
+    const line = `${name}: ${band}, EL = ${modEl}${hhstTag}     ${numericIncome} gp`;
+    lines.push(line);
+  });
+
+  return lines.join("\n");
+}
+
+function updateSummary() {
+  summaryText.textContent = buildSummary();
+}
+
+// ---------- Appendix ----------
+
+appendixToggle.addEventListener("click", () => {
+  const isOpen = appendixContent.classList.toggle("open");
+  appendixToggle.textContent = isOpen ? "Hide appendix" : "Show appendix";
+});
+
+function renderIncomeTable() {
+  incomeTableBody.innerHTML = "";
+  internalIncomeTable.forEach((row) => {
+    const critSuccess = (row.income * 2).toFixed(2);
+    const success = row.income.toFixed(2);
+    const fail = (row.income * 0.5).toFixed(2);
+    const critFail = "0.00";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.el}</td>
+      <td>${row.dc}</td>
+      <td>${success}</td>
+      <td>${critSuccess}</td>
+      <td>${fail}</td>
+      <td>${critFail}</td>
+    `;
+    incomeTableBody.appendChild(tr);
   });
 }
 
+// ---------- Wiring & initial state ----------
+
+function initDate() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  downtimeDateInput.value = `${yyyy}-${mm}-${dd}`;
+}
+
+function wireGlobalListeners() {
+  downtimeDateInput.addEventListener("change", updateSummary);
+}
+
+function initCharacters() {
+  for (let i = 0; i < MAX_CHARACTERS; i++) {
+    createCharacterCard(i);
+  }
+}
+
 function init() {
-  wireConfigListeners();
-  updateTargetDc();
-  initRows();
+  initDate();
+  wireGlobalListeners();
+  initCharacters();
+  renderIncomeTable();
   updateSummary();
 }
 
