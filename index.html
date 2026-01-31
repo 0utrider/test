@@ -1,50 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Downtime Income Calculator</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <title>Society Downtime Income Calculator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=Cinzel:wght@400;600&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
 </head>
-<body>
-  <header>
-    <img src="img/icon-header.webp" alt="Header Icon" id="header-icon" />
-    <h1>Downtime Income Calculator</h1>
-  </header>
+<body class="theme-dark">
+    <div id="background-layer">
+        <div id="background-image"></div>
+        <div id="background-shader"></div>
+    </div>
 
-  <main>
-    <form id="calculator-form">
-      <table id="characters-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Level</th>
-            <th>Training</th>
-            <th>HHST Boon</th>
-            <th>Downtime Days</th>
-            <th>Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Character rows will be dynamically added here -->
-        </tbody>
-      </table>
-      <button type="button" id="add-character">Add Character</button>
-    </form>
+    <div id="top-bar">
+        <div id="header-left">
+            <img src="img/icon-header.webp" alt="Downtime Icon" id="header-icon">
+            <h1>Downtime Income Calculator</h1>
+        </div>
+        <div id="header-right">
+            <button id="theme-toggle" title="Toggle dark/light theme">
+                <img src="img/icon-theme.webp" alt="Theme Toggle">
+            </button>
+            <label id="mobile-label">
+                Mobile Mode
+                <input type="checkbox" id="mobileSwitch">
+            </label>
+        </div>
+    </div>
 
-    <section id="summary-section">
-      <h2>Summary</h2>
-      <pre id="summary-output"></pre>
-      <button id="copy-all">
-        <img src="img/icon-copyall.webp" alt="Copy All" /> Copy All
-      </button>
-    </section>
-  </main>
+    <main id="container">
+        <section id="characters-section">
+            <h2>Characters</h2>
+            <div id="character-rows"></div>
+        </section>
 
-  <button id="theme-toggle" aria-label="Toggle Theme">
-    <img src="img/icon-theme.webp" alt="Theme Toggle" />
-  </button>
+        <section id="summary-section">
+            <div id="summary-header">
+                <h2>Summary</h2>
+                <button id="copy-summary" title="Copy all summary lines">
+                    <img src="img/icon-copyall.webp" alt="Copy All">
+                </button>
+            </div>
+            <pre id="summary-output"></pre>
+        </section>
 
-  <script src="script.js"></script>
+        <section id="appendix-section">
+            <button id="appendix-toggle">Show Appendix</button>
+
+            <div id="appendix" class="hidden">
+                <h2>Acronyms</h2>
+                <ul>
+                    <li>DC – Difficulty Class</li>
+                    <li>EL – Effective Level</li>
+                    <li>GP – Gold points; decimal values represent silver (tenths) and copper (hundredths)</li>
+                    <li>HHST – Horizon Hunters: Storied Talent boon</li>
+                    <li>TEML – Proficiency level: Trained, Expert, Master, Legendary</li>
+                </ul>
+
+                <h2>Glossary</h2>
+                <p>
+                    Downtime – a means to earn extra income between missions, see
+                    <a href="https://lorespire.paizo.com/tiki-index.php?page=pfs2guide._.After-the-Adventure#Downtime" target="_blank">
+                        Lorespire
+                    </a>
+                    for details.
+                </p>
+
+                <h2>Downtime Income Table</h2>
+                <div id="csv-table"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
 </body>
 </html>
