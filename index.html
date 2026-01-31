@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Downtime Income Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <img src="img/icon-header.webp" alt="Header Icon" id="header-icon" />
+    <h1>Downtime Income Calculator</h1>
+  </header>
+
+  <main>
+    <form id="calculator-form">
+      <table id="characters-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Level</th>
+            <th>Training</th>
+            <th>HHST Boon</th>
+            <th>Downtime Days</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Character rows will be dynamically added here -->
+        </tbody>
+      </table>
+      <button type="button" id="add-character">Add Character</button>
+    </form>
+
+    <section id="summary-section">
+      <h2>Summary</h2>
+      <pre id="summary-output"></pre>
+      <button id="copy-all">
+        <img src="img/icon-copyall.webp" alt="Copy All" /> Copy All
+      </button>
+    </section>
+  </main>
+
+  <button id="theme-toggle" aria-label="Toggle Theme">
+    <img src="img/icon-theme.webp" alt="Theme Toggle" />
+  </button>
+
+  <script src="script.js"></script>
+</body>
+</html>
