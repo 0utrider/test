@@ -2,91 +2,118 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Downtime Income Helper</title>
+  <title>Society Downtime Income Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=Cinzel:wght@400;600&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
-  <div class="app-root">
+<body class="theme-dark">
+  <div id="background-layer"></div>
+  <div id="overlay-layer"></div>
+
+  <div id="app">
     <header class="app-header">
-      <div class="app-title-block">
-        <div class="app-icon" aria-hidden="true">⏳</div>
-        <div>
-          <h1>Downtime Income Helper</h1>
-          <p class="subtitle">For Pathfinder Society 2</p>
-        </div>
+      <div class="title-block">
+        <img src="img/icon-logo.webp" alt="Downtime Icon" class="title-icon" onerror="this.style.display='none';" />
+        <h1 class="app-title">Society Downtime Income Calculator</h1>
       </div>
 
       <div class="header-controls">
-        <label class="toggle light-toggle">
-          <input type="checkbox" id="lightModeToggle" />
-          <span class="toggle-indicator"></span>
-          <span class="toggle-label">Light mode</span>
-        </label>
+        <div class="system-toggle">
+          <label>
+            <input type="radio" name="system" value="pf2" checked />
+            <span>PF2</span>
+          </label>
+          <label>
+            <input type="radio" name="system" value="sf2" />
+            <span>SF2</span>
+          </label>
+        </div>
+
+        <div class="theme-toggle">
+          <label class="toggle-label">
+            <input type="checkbox" id="lightModeToggle" />
+            <span class="toggle-custom"></span>
+            <span class="toggle-text">Light Mode</span>
+          </label>
+        </div>
       </div>
     </header>
 
-    <main class="app-main">
-      <section class="panel panel-config">
-        <div class="config-row">
-          <div class="field-group">
-            <label for="downtimeDate">Date</label>
-            <input id="downtimeDate" type="date" />
-          </div>
-          <div class="field-group">
-            <label for="scenarioNumber">Scenario Number</label>
-            <input
-              id="scenarioNumber"
-              type="text"
-              placeholder="e.g. PFS #4-08: Battle for Star’s Fate"
-            />
-            <p class="field-help">
-              Only letters, numbers, dashes, parentheses, and colons are allowed.
-            </p>
-          </div>
+    <main>
+      <!-- Critical error banner -->
+      <div id="error-banner" class="banner banner-error hidden">
+        Critical reference file missing. Please check downtime CSV files and reload.
+      </div>
+
+      <!-- Copy confirmation banner -->
+      <div id="copy-banner" class="banner banner-copy hidden">
+        Summary copied to clipboard.
+      </div>
+
+      <!-- General Input -->
+      <section class="card" id="general-input">
+        <h2>General Input</h2>
+        <div class="form-row">
+          <label for="dateInput">Date</label>
+          <input type="date" id="dateInput" />
+        </div>
+        <div class="form-row">
+          <label for="scenarioInput">Scenario Number</label>
+          <input type="text" id="scenarioInput" maxlength="100" />
+          <div class="field-error" data-error-for="scenarioInput"></div>
         </div>
       </section>
 
-      <section class="panel panel-characters">
-        <div id="charactersContainer"></div>
+      <!-- Characters Input -->
+      <section class="card" id="characters-input">
+        <h2>Characters</h2>
+        <div id="character-rows"></div>
       </section>
 
-      <section class="panel panel-summary">
+      <!-- Summary -->
+      <section class="card" id="summary-section">
         <h2>Summary</h2>
-        <pre id="summaryText" class="summary-text" aria-label="Downtime summary"></pre>
+        <pre id="summary-output" class="summary-output"></pre>
+        <button id="copy-summary-btn" class="btn" title="Copy to Clipboard">📋 Copy</button>
       </section>
 
-      <section class="panel panel-appendix">
-        <button id="appendixToggle" class="btn secondary-btn" type="button">
-          Show appendix
+      <!-- Appendix -->
+      <section class="card" id="appendix-section">
+        <button id="appendix-toggle" class="btn btn-secondary">
+          Show Appendix
         </button>
-        <div id="appendixContent" class="appendix-content">
-          <h3>Acronyms</h3>
-          <ul class="appendix-list">
-            <li><strong>EL:</strong> Effective Level used for Earn Income tables.</li>
-            <li><strong>HHST:</strong> Horizon Hunters: Storied Talent.</li>
-          </ul>
 
-          <h3>Reference notes</h3>
-          <p class="appendix-text">
-            This tool uses an internal Earn Income table based on effective level (EL). HHST and result
-            bands adjust which EL row is used for income.
-          </p>
+        <div id="appendix-content" class="appendix hidden">
+          <h2>Appendix</h2>
 
-          <h3>Income table (per day, success)</h3>
-          <table class="income-table" aria-label="Earn Income table">
-            <thead>
-              <tr>
-                <th>EL</th>
-                <th>DC</th>
-                <th>Income (gp/day, success)</th>
-                <th>Crit success</th>
-                <th>Failure</th>
-                <th>Crit failure</th>
-              </tr>
-            </thead>
-            <tbody id="incomeTableBody"></tbody>
-          </table>
+          <div class="appendix-block">
+            <h3>Acronyms</h3>
+            <ul>
+              <li>DC – Difficulty Class</li>
+              <li>EL – Effective Level</li>
+              <li>GP – gold points</li>
+              <li>CR – credits</li>
+              <li>HHST – Horizon Hunters: Storied Talent</li>
+              <li>TEML – Trained, Expert, Master, Legendary</li>
+            </ul>
+          </div>
+
+          <div class="appendix-block">
+            <h3>Glossary</h3>
+            <p>
+              Downtime – a means to earn extra income between missions.
+              See: https://lorespire.paizo.com/tiki-index.php?page=pfs2guide._.After-the-Adventure#Downtime
+            </p>
+          </div>
+
+          <div class="appendix-block">
+            <h3>Downtime Income Table</h3>
+            <div id="downtime-table-container"></div>
+          </div>
         </div>
       </section>
     </main>
