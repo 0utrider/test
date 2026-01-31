@@ -1,77 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Society Downtime Income Calculator</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=Cinzel:wght@400;600&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <title>Pathfinder Society Downtime Income Helper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body class="theme-dark">
-    <div id="background-layer">
-        <div id="background-image"></div>
-        <div id="background-shader"></div>
-    </div>
-
-    <div id="top-bar">
-        <div id="header-left">
-            <img src="img/icon-header.webp" alt="Downtime Icon" id="header-icon">
-            <h1>Downtime Income Calculator</h1>
+<body>
+  <div class="app-root">
+    <header class="app-header">
+      <div class="app-title-block">
+        <div class="app-icon" aria-hidden="true">⏳</div>
+        <div>
+          <h1>Downtime Income Helper</h1>
+          <p class="subtitle">Pathfinder Society–style income, visualized and explained.</p>
         </div>
-        <div id="header-right">
-            <button id="theme-toggle" title="Toggle dark/light theme">
-                <img src="img/icon-theme.webp" alt="Theme Toggle">
-            </button>
-            <label id="mobile-label">
-                Mobile Mode
-                <input type="checkbox" id="mobileSwitch">
+      </div>
+
+      <div class="header-controls">
+        <label class="toggle light-toggle">
+          <input type="checkbox" id="lightModeToggle" />
+          <span class="toggle-indicator"></span>
+          <span class="toggle-label">Light mode</span>
+        </label>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <section class="panel panel-config">
+        <h2>1. Scenario & character setup</h2>
+
+        <div class="config-grid">
+          <div class="field-group">
+            <label for="scenarioName">Scenario name</label>
+            <input id="scenarioName" type="text" placeholder="e.g. PFS #4-08: Battle for Star’s Fate" />
+          </div>
+
+          <div class="field-group">
+            <label for="characterName">Character name</label>
+            <input id="characterName" type="text" placeholder="e.g. Sereth, meticulous archivist" />
+          </div>
+
+          <div class="field-group">
+            <label for="effectiveLevel">Effective level (EL)</label>
+            <input id="effectiveLevel" type="number" min="0" max="9" step="1" value="3" />
+            <p class="field-help">
+              Use the table’s effective level (EL), not necessarily your character level.
+            </p>
+          </div>
+
+          <div class="field-group">
+            <label for="proficiencyTier">Proficiency / training tier</label>
+            <select id="proficiencyTier">
+              <option value="trained">Trained</option>
+              <option value="expert">Expert</option>
+              <option value="master">Master</option>
+              <option value="legendary">Legendary</option>
+            </select>
+            <p class="field-help">
+              This is your proficiency in the skill you’re using for Earn Income.
+            </p>
+          </div>
+
+          <div class="field-group">
+            <label for="daysEarnIncome">Days of Earn Income</label>
+            <input id="daysEarnIncome" type="number" min="1" max="30" value="8" />
+          </div>
+
+          <div class="field-group">
+            <label class="toggle">
+              <input type="checkbox" id="hhstToggle" />
+              <span class="toggle-indicator"></span>
+              <span class="toggle-label">HHST boon active</span>
             </label>
+            <p class="field-help">
+              “Home Is Where the Heart Is”–style boon: improves DC and payout when toggled on.
+            </p>
+          </div>
         </div>
-    </div>
 
-    <main id="container">
-        <section id="characters-section">
-            <h2>Characters</h2>
-            <div id="character-rows"></div>
-        </section>
+        <div class="dc-badge-wrapper">
+          <div class="dc-badge">
+            <div class="dc-label">Target DC</div>
+            <div class="dc-value" id="targetDcDisplay">—</div>
+            <div class="dc-sub" id="dcSubLabel">Awaiting inputs…</div>
+          </div>
+        </div>
+      </section>
 
-        <section id="summary-section">
-            <div id="summary-header">
-                <h2>Summary</h2>
-                <button id="copy-summary" title="Copy all summary lines">
-                    <img src="img/icon-copyall.webp" alt="Copy All">
-                </button>
+      <section class="panel panel-csv">
+        <h2>2. Import or define income table</h2>
+
+        <div class="csv-layout">
+          <div class="csv-upload">
+            <label class="field-label">Upload CSV (optional)</label>
+            <input type="file" id="csvInput" accept=".csv,text/csv" />
+            <p class="field-help">
+              Supports official PFS CSVs and common community variants. Columns like
+              <code>EL</code>, <code>DC</code>, <code>Result</code>, <code>Income</code> are auto-detected.
+            </p>
+            <div id="csvError" class="inline-error" aria-live="polite"></div>
+          </div>
+
+          <div class="csv-preview">
+            <h3>Detected rows</h3>
+            <div id="csvPreviewEmpty" class="csv-preview-empty">
+              No CSV loaded yet. The tool will fall back to its internal baseline table.
             </div>
-            <pre id="summary-output"></pre>
-        </section>
+            <table id="csvPreviewTable" class="csv-preview-table" aria-label="Income table preview">
+              <thead>
+                <tr>
+                  <th>EL</th>
+                  <th>DC</th>
+                  <th>Result band</th>
+                  <th>Income (per day)</th>
+                </tr>
+              </thead>
+              <tbody id="csvPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-        <section id="appendix-section">
-            <button id="appendix-toggle">Show Appendix</button>
+      <section class="panel panel-rows">
+        <h2>3. Downtime rows</h2>
+        <p class="panel-intro">
+          Fill each row in order. When a row is complete, the next one unlocks. This mirrors how most players
+          think about “day chunks” of Earn Income.
+        </p>
 
-            <div id="appendix" class="hidden">
-                <h2>Acronyms</h2>
-                <ul>
-                    <li>DC – Difficulty Class</li>
-                    <li>EL – Effective Level</li>
-                    <li>GP – Gold points; decimal values represent silver (tenths) and copper (hundredths)</li>
-                    <li>HHST – Horizon Hunters: Storied Talent boon</li>
-                    <li>TEML – Proficiency level: Trained, Expert, Master, Legendary</li>
-                </ul>
+        <div class="rows-header">
+          <span class="rows-col rows-col--day">Day range</span>
+          <span class="rows-col rows-col--check">Check result</span>
+          <span class="rows-col rows-col--band">Result band</span>
+          <span class="rows-col rows-col--gp">Income (gp)</span>
+        </div>
 
-                <h2>Glossary</h2>
-                <p>
-                    Downtime – a means to earn extra income between missions, see
-                    <a href="https://lorespire.paizo.com/tiki-index.php?page=pfs2guide._.After-the-Adventure#Downtime" target="_blank">
-                        Lorespire
-                    </a>
-                    for details.
-                </p>
+        <div id="rowsContainer" class="rows-container">
+          <!-- Rows injected by JS -->
+        </div>
+      </section>
 
-                <h2>Downtime Income Table</h2>
-                <div id="csv-table"></div>
-            </div>
-        </section>
+      <section class="panel panel-summary">
+        <h2>4. Summary & copy</h2>
+
+        <div class="summary-grid">
+          <div class="summary-block">
+            <h3>Quick numbers</h3>
+            <ul class="summary-list">
+              <li><span>Total days:</span> <span id="summaryDays">—</span></li>
+              <li><span>Total income (gp):</span> <span id="summaryTotalGp">—</span></li>
+              <li><span>Average per day (gp):</span> <span id="summaryAvgGp">—</span></li>
+            </ul>
+          </div>
+
+          <div class="summary-block">
+            <h3>Copyable recap</h3>
+            <button id="copySummaryBtn" class="btn primary-btn">Copy recap to clipboard</button>
+            <pre id="summaryText" class="summary-text" aria-label="Copyable downtime summary"></pre>
+          </div>
+        </div>
+
+        <div id="copyBanner" class="copy-banner" aria-live="polite">
+          <span class="copy-banner-icon" aria-hidden="true">✅</span>
+          <span class="copy-banner-text">Downtime recap copied. Paste into your Chronicle notes or GM log.</span>
+        </div>
+      </section>
     </main>
 
-    <script src="script.js"></script>
+    <footer class="app-footer">
+      <span class="footer-icon" aria-hidden="true">📜</span>
+      <span>
+        Downtime math is based on effective level, proficiency, and result bands. Always defer to your GM for
+        final rulings.
+      </span>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
