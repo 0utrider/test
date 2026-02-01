@@ -322,6 +322,10 @@ function createCharacterRow(index) {
 
   card.append(header, middle, footer);
   return card;
+  footer.append(resultRow, daysRow, incomeRow);
+
+  card.append(header, middle, footer);
+  return card;
 }
 
 function handleRowVisibility(index) {
@@ -500,4 +504,192 @@ function recalcRow(card) {
     modifiedEL = initialEL;
   } else if (result === "crit-success") {
     modifiedEL = initialEL + 1;
-    if (currentSystem === PF
+    if (currentSystem === PF2 && modifiedEL > 21) modifiedEL = 21;
+    if (currentSystem === SF2 && modifiedEL > 10) modifiedEL = 10;
+  }
+  // DC color by result
+  if (result === "crit-fail") {
+    dcSpan.style.color = "var(--dc-crit-fail)";
+  } else if (result === "fail") {
+    dcSpan.style.color = "var(--dc-fail)";
+  } else if (result === "success") {
+    dcSpan.style.color = "var(--dc-success)";
+  } else if (result === "crit-success") {
+    dcSpan.style.color = "var(--dc-crit-success)";
+  } else {
+    dcSpan.style.color = "var(--dc-default)";
+  }
+
+  if (modifiedEL === null) {
+    modifiedELDisplay = "—";
+    incomeDisplay.value = formatCurrency(0);
+  } else {
+    modifiedELDisplay = String(modifiedEL);
+    const rowForModified = table.rows.find((r) => parseInt(r.EL, 10) === modifiedEL);
+    let perDay = 0;
+    if (rowForModified) {
+      if (result === "fail") {
+        perDay = parseFloat(rowForModified.Fail || "0") || 0;
+      } else {
+        const col = prof;
+        const val = rowForModified[col] || "0";
+        perDay = parseFloat(val) || 0;
+      }
+    }
+    const total = perDay * daysVal;
+    incomeDisplay.value = formatCurrency(total);
+  }
+
+  card.dataset.modifiedEl = modifiedELDisplay;
+}
+
+function formatCurrency(value) {
+  if (currentSystem === PF2) {
+    return `${value} gp`;
+  } else {
+    const intVal = Math.round(value);
+    return `${intVal} cr`;
+  }
+}
+
+// ============================================================
+//  SUMMARY
+// ============================================================
+
+function initSummaryCopy() {
+  const btn = document.getElementById("copy-summary-btn");
+  btn.addEventListener("click", () => {
+    const text = document.getElementById("summary-output").textContent;
+    if (!text.trim()) return;
+    navigator.clipboard.writeText(text).then(() => {
+      showCopyBanner();
+    });
+  });
+}
+
+function showCopyBanner() {
+  const banner = document.getElementById("copy-banner");
+  banner.classList.remove("hidden");
+  banner.classList.add("visible");
+  setTimeout(() => {
+    banner.classList.remove("visible");
+    setTimeout(() => banner.classList.add("hidden"), 400);
+  }, 3000);
+}
+
+function updateSummary() {
+  const date = document.getElementById("dateInput").value || "";
+  const scenario = document.getElementById("scenarioInput").value || "";
+  const rows = document.querySelectorAll(".character-card");
+
+  const lines = [];
+  lines.push(`${date} ${scenario}`.trim());
+
+  rows.forEach((card) => {
+    const index = card.dataset.index;
+    const nameInput = card.querySelector(`#char-name-${index}`);
+    const levelInput = card.querySelector(`#char-level-${index}`);
+    const daysInput = card.querySelector(`#char-days-${index}`);
+    const incomeDisplay = card.querySelector(`#char-income-${index}`);
+    const hhstInput = card.querySelector(`#char-hhst-${index}`);
+
+    const profInputs = card.querySelectorAll(`input[name="char-prof-${index}"]`);
+    const resultInputs = card.querySelectorAll(`input[name="char-result-${index}"]`);
+
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    const levelVal = parseInt(levelInput.value || "0", 10);
+    const daysVal = parseInt(daysInput.value || "0", 10);
+    const prof = Array.from(profInputs).find((i) => i.checked)?.value || null;
+    const resultVal = Array.from(resultInputs).find((i) => i.checked)?.value || null;
+
+    const levelErr = document.querySelector(`.field-error[data-error-for="${levelInput.id}"]`)?.textContent;
+    const daysErr = document.querySelector(`.field-error[data-error-for="${daysInput.id}"]`)?.textContent;
+
+    if (!levelVal || !daysVal || !prof || !resultVal || levelErr || daysErr) {
+      return;
+    }
+
+    const modifiedELDisplay = card.dataset.modifiedEl || "—";
+    const incomeText = incomeDisplay.value || "";
+
+    let resultLabel = "";
+    if (resultVal === "crit-fail") resultLabel = "Crit Fail";
+    else if (resultVal === "fail") resultLabel = "Fail";
+    else if (resultVal === "success") resultLabel = "Success";
+    else if (resultVal === "crit-success") resultLabel = "Crit Success";
+
+    let line = `${name}: ${resultLabel}, EL = ${modifiedELDisplay}`;
+    if (currentSystem === PF2 && hhstInput && hhstInput.checked) {
+      line += " (HHST)";
+    }
+
+    const parts = incomeText.split(" ");
+    const amount = parts[0] || "0";
+    const unit = parts[1] || (currentSystem === PF2 ? "gp" : "cr");
+    line += `     +${amount} ${unit}`;
+
+    lines.push(line);
+  });
+
+  document.getElementById("summary-output").textContent = lines.join("\n");
+}
+// ============================================================
+//  APPENDIX
+// ============================================================
+
+function initAppendixToggle() {
+  const btn = document.getElementById("appendix-toggle");
+  const content = document.getElementById("appendix-content");
+  btn.addEventListener("click", () => {
+    const isHidden = content.classList.contains("hidden");
+    if (isHidden) {
+      content.classList.remove("hidden");
+      btn.textContent = "Hide Appendix";
+    } else {
+      content.classList.add("hidden");
+      btn.textContent = "Show Appendix";
+    }
+  });
+}
+
+function renderDowntimeTable() {
+  const container = document.getElementById("downtime-table-container");
+  container.innerHTML = "";
+  const tableData = currentSystem === PF2 ? pf2Table : sf2Table;
+  if (!tableData) return;
+
+  const table = document.createElement("table");
+  table.className = "downtime-table";
+
+  const thead = document.createElement("thead");
+  const trHead = document.createElement("tr");
+  tableData.headers.forEach((h) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+
+  const tbody = document.createElement("tbody");
+  tableData.rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tableData.headers.forEach((h) => {
+      const td = document.createElement("td");
+      td.textContent = row[h] || "";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  table.append(thead, tbody);
+  container.appendChild(table);
+}
+
+// ============================================================
+//  END OF FILE MARKER (for assembly verification)
+// ============================================================
+
+// When assembling all 5 parts, the final file should end with:
+//   -->  // END OF FILE
