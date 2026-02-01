@@ -107,8 +107,15 @@ function initDateInput() {
   const isoToday = `${yyyy}-${mm}-${dd}`;
 
   dateInput.placeholder = isoToday;
-  dateInput.setAttribute("value", isoToday);
-  dateInput.value = isoToday; // keep both
+  dateInput.value = isoToday;
+
+  // Optional: light validation on blur
+  dateInput.addEventListener("blur", () => {
+    const v = dateInput.value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      dateInput.value = isoToday;
+    }
+  });
 }
 
 // ============================================================
@@ -497,8 +504,8 @@ function recalcRow(card) {
     }
     if (initialEL > 20) initialEL = 20;
   } else {
-    initialEL = Math.max(0, levelVal - 1);
-    if (initialEL > 9) initialEL = 9;
+    initialEL = Math.max(0, levelVal - 2);
+    if (initialEL > 10) initialEL = 10;
   }
 
   const table = currentSystem === PF2 ? pf2Table : sf2Table;
