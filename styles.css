@@ -291,26 +291,26 @@ body.theme-light .character-card {
   background-color: var(--card-bg-light);
 }
 
-/* Character header tightened */
+/* Character header — strict 4-column layout */
 
 .character-header {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: 1rem;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+  align-items: start;
 }
 
 .character-header .form-row {
-  flex: 0 0 auto;
-  width: auto;
+  margin-bottom: 0;
 }
 
-/* DC styling */
+/* DC row — centered */
 
 .character-middle {
-  margin-top: 0.5rem;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 0.5rem 0;
   font-family: "PT Sans", sans-serif;
   font-size: 0.95rem;
 }
@@ -328,18 +328,17 @@ body.theme-light .character-middle span {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Footer layout */
+/* Footer — strict 3-column layout */
 
 .character-footer {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  column-gap: 1rem;
   align-items: center;
-  gap: 1rem;
-  flex-wrap: nowrap;
 }
 
-.character-footer > .form-row {
-  flex: 1 1 0;
+.character-footer .form-row {
+  margin-bottom: 0;
 }
 
 /* Radio groups */
@@ -603,7 +602,7 @@ body.theme-light .downtime-table td {
 
   .character-header,
   .character-footer {
-    flex-direction: column;
+    grid-template-columns: 1fr !important;
   }
 
   .summary-output {
