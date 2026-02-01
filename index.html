@@ -43,24 +43,27 @@
     <!-- GENERAL INPUT CARD -->
     <!-- ========================================================= -->
     <div class="card">
-      <div class="system-toggle-container">
-        <div class="system-toggle">
-          <label>
-            <input type="radio" name="system" value="pf2" checked />
-            <span>PF2</span>
-          </label>
-          <label>
-            <input type="radio" name="system" value="sf2" />
-            <span>SF2</span>
-          </label>
+
+      <div class="general-input-header">
+        <h2>General Input</h2>
+
+        <div class="system-toggle-container">
+          <div class="system-toggle">
+            <label>
+              <input type="radio" name="system" value="pf2" checked />
+              <span>PF2</span>
+            </label>
+            <label>
+              <input type="radio" name="system" value="sf2" />
+              <span>SF2</span>
+            </label>
+          </div>
         </div>
       </div>
 
-      <h2>General Input</h2>
-
       <div class="form-row">
         <label for="dateInput">Date</label>
-        <input type="date" id="dateInput" />
+        <input type="text" id="dateInput" inputmode="numeric" placeholder="YYYY-MM-DD" />
       </div>
 
       <div class="form-row">
