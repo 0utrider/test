@@ -100,7 +100,6 @@ function handleSystemChange() {
 function initDateInput() {
   const dateInput = document.getElementById("dateInput");
 
-  // Set placeholder to today's date
   const today = new Date();
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, "0");
@@ -108,27 +107,14 @@ function initDateInput() {
   const isoToday = `${yyyy}-${mm}-${dd}`;
 
   dateInput.placeholder = isoToday;
-
-  // Set default value
   dateInput.value = isoToday;
 
-  // Detect native date picker support
-  const test = document.createElement("input");
-  test.type = "date";
-  const nativeSupported = test.type === "date";
-
-  if (!nativeSupported) {
-    attachFallbackDatePicker(dateInput);
-  }
+  attachFallbackDatePicker(dateInput);
 }
 
-// ------------------------------------------------------------
-//  Fallback Date Picker (Option 2: themed popup calendar)
-// ------------------------------------------------------------
+// Fallback Date Picker (Option 2: themed popup calendar)
 
 function attachFallbackDatePicker(input) {
-  input.readOnly = true;
-
   input.addEventListener("click", () => {
     showCalendarPopup(input);
   });
@@ -141,9 +127,12 @@ function showCalendarPopup(input) {
   const popup = document.createElement("div");
   popup.className = "calendar-popup";
 
-  const selected = input.value ? new Date(input.value) : new Date();
-  let currentMonth = selected.getMonth();
-  let currentYear = selected.getFullYear();
+  const baseDate = input.value && /^\d{4}-\d{2}-\d{2}$/.test(input.value)
+    ? new Date(input.value)
+    : new Date();
+
+  let currentMonth = baseDate.getMonth();
+  let currentYear = baseDate.getFullYear();
 
   function renderCalendar() {
     popup.innerHTML = "";
@@ -210,6 +199,7 @@ function showCalendarPopup(input) {
         const iso = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         input.value = iso;
         closeExistingCalendar();
+        updateSummary();
       };
 
       grid.appendChild(cell);
@@ -220,17 +210,22 @@ function showCalendarPopup(input) {
 
   renderCalendar();
 
-  popup.style.position = "absolute";
   popup.style.top = rect.bottom + window.scrollY + "px";
   popup.style.left = rect.left + window.scrollX + "px";
 
   document.body.appendChild(popup);
 
-  document.addEventListener("click", (e) => {
-    if (!popup.contains(e.target) && e.target !== input) {
-      closeExistingCalendar();
-    }
-  }, { once: true });
+  setTimeout(() => {
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (!popup.contains(e.target) && e.target !== input) {
+          closeExistingCalendar();
+        }
+      },
+      { once: true }
+    );
+  }, 0);
 }
 
 function closeExistingCalendar() {
@@ -256,10 +251,7 @@ function createCharacterRow(index) {
   card.className = "character-card";
   card.dataset.index = index;
 
-  // ------------------------------------------------------------
   // HEADER
-  // ------------------------------------------------------------
-
   const header = document.createElement("div");
   header.className = "character-header";
 
@@ -341,7 +333,7 @@ function createCharacterRow(index) {
   profError.dataset.errorFor = `char-prof-${index}`;
   profRow.append(profLabel, profGroup, profError);
 
-  // HHST (PF2 only)
+  // HHST
   const hhstRow = document.createElement("div");
   hhstRow.className = "form-row hhst-row";
   const hhstLabel = document.createElement("label");
@@ -363,10 +355,7 @@ function createCharacterRow(index) {
 
   header.append(nameRow, levelRow, profRow, hhstRow);
 
-  // ------------------------------------------------------------
   // DC DISPLAY
-  // ------------------------------------------------------------
-
   const middle = document.createElement("div");
   middle.className = "character-middle";
   const dcSpan = document.createElement("span");
@@ -374,10 +363,7 @@ function createCharacterRow(index) {
   dcSpan.id = `char-dc-${index}`;
   middle.appendChild(dcSpan);
 
-  // ------------------------------------------------------------
-  // FOOTER (Result + Days + Income)
-  // ------------------------------------------------------------
-
+  // FOOTER
   const footer = document.createElement("div");
   footer.className = "character-footer";
 
@@ -457,10 +443,6 @@ function createCharacterRow(index) {
 
   footer.append(resultRow, daysRow, incomeRow);
 
-  // ------------------------------------------------------------
-  // Assemble card
-  // ------------------------------------------------------------
-
   card.append(header, middle, footer);
   return card;
 }
@@ -534,11 +516,294 @@ function validateDays(input) {
 
 function loadCSVs() {
   Promise.all([
-    fetch("pf2-downtime.csv").then((r) => r.ok ? r.text() : Promise.reject()),
-    fetch("sf2-downtime.csv").then((r) => r.ok ? r.text() : Promise.reject())
+    fetch("pf2-downtime.csv").then((r) => (r.ok ? r.text() : Promise.reject())),
+    fetch("sf2-downtime.csv").then((r) => (r.ok ? r.text() : Promise.reject()))
   ])
     .then(([pf2Text, sf2Text]) => {
       pf2Table = parseCSV(pf2Text);
       sf2Table = parseCSV(sf2Text);
       renderDowntimeTable();
     })
+    .catch(() => {
+      showErrorBanner();
+    });
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const headers = lines[0].split(",");
+  const rows = lines.slice(1).map((line) => {
+    const cols = line.split(",");
+    const obj = {};
+    headers.forEach((h, i) => {
+      obj[h.trim()] = cols[i] !== undefined ? cols[i].trim() : "";
+    });
+    return obj;
+  });
+  return { headers, rows };
+}
+
+function showErrorBanner() {
+  const banner = document.getElementById("error-banner");
+  banner.classList.remove("hidden");
+  banner.classList.add("visible");
+}
+
+// ============================================================
+//  CALCULATIONS
+// ============================================================
+
+function recalcRow(card) {
+  if (!pf2Table || !sf2Table) return;
+
+  const index = card.dataset.index;
+  const nameInput = card.querySelector(`#char-name-${index}`);
+  const levelInput = card.querySelector(`#char-level-${index}`);
+  const daysInput = card.querySelector(`#char-days-${index}`);
+  const dcSpan = card.querySelector(`#char-dc-${index}`);
+  const incomeDisplay = card.querySelector(`#char-income-${index}`);
+
+  const profInputs = card.querySelectorAll(`input[name="char-prof-${index}"]`);
+  const resultInputs = card.querySelectorAll(`input[name="char-result-${index}"]`);
+  const hhstInput = card.querySelector(`#char-hhst-${index}`);
+
+  // Reset display
+  dcSpan.textContent = "DC: —";
+  dcSpan.style.color = "var(--dc-default)";
+  incomeDisplay.value = "";
+  let modifiedELDisplay = "—";
+
+  const name = nameInput.value.trim();
+  if (!name) {
+    card.dataset.modifiedEl = modifiedELDisplay;
+    return;
+  }
+
+  const levelVal = parseInt(levelInput.value || "0", 10);
+  const daysVal = parseInt(daysInput.value || "0", 10);
+  const prof = Array.from(profInputs).find((i) => i.checked)?.value || null;
+  const result = Array.from(resultInputs).find((i) => i.checked)?.value || null;
+
+  const levelErr = document.querySelector(`.field-error[data-error-for="${levelInput.id}"]`)?.textContent;
+  const daysErr = document.querySelector(`.field-error[data-error-for="${daysInput.id}"]`)?.textContent;
+
+  if (!levelVal || !daysVal || !prof || !result || levelErr || daysErr) {
+    card.dataset.modifiedEl = modifiedELDisplay;
+    return;
+  }
+
+  // initialEL
+  let initialEL = 0;
+  if (currentSystem === PF2) {
+    if (hhstInput && hhstInput.checked) {
+      initialEL = levelVal;
+    } else {
+      initialEL = Math.max(0, levelVal - 2);
+    }
+    if (initialEL > 20) initialEL = 20;
+  } else {
+    initialEL = Math.max(0, levelVal - 1);
+    if (initialEL > 9) initialEL = 9;
+  }
+
+  const table = currentSystem === PF2 ? pf2Table : sf2Table;
+  const rowForInitial = table.rows.find((r) => parseInt(r.EL, 10) === initialEL);
+
+  if (rowForInitial && rowForInitial.DC && rowForInitial.DC !== "-") {
+    dcSpan.textContent = `DC: ${rowForInitial.DC}`;
+  } else {
+    dcSpan.textContent = "DC: —";
+  }
+
+  // modifiedEL
+  let modifiedEL = null;
+  if (result === "crit-fail") {
+    modifiedEL = null;
+  } else if (result === "fail" || result === "success") {
+    modifiedEL = initialEL;
+  } else if (result === "crit-success") {
+    modifiedEL = initialEL + 1;
+    if (currentSystem === PF2 && modifiedEL > 21) modifiedEL = 21;
+    if (currentSystem === SF2 && modifiedEL > 10) modifiedEL = 10;
+  }
+
+  // DC color by result
+  if (result === "crit-fail") {
+    dcSpan.style.color = "var(--dc-crit-fail)";
+  } else if (result === "fail") {
+    dcSpan.style.color = "var(--dc-fail)";
+  } else if (result === "success") {
+    dcSpan.style.color = "var(--dc-success)";
+  } else if (result === "crit-success") {
+    dcSpan.style.color = "var(--dc-crit-success)";
+  } else {
+    dcSpan.style.color = "var(--dc-default)";
+  }
+
+  if (modifiedEL === null) {
+    modifiedELDisplay = "—";
+    incomeDisplay.value = formatCurrency(0);
+  } else {
+    modifiedELDisplay = String(modifiedEL);
+    const rowForModified = table.rows.find((r) => parseInt(r.EL, 10) === modifiedEL);
+    let perDay = 0;
+    if (rowForModified) {
+      if (result === "fail") {
+        perDay = parseFloat(rowForModified.Fail || "0") || 0;
+      } else {
+        const col = prof;
+        const val = rowForModified[col] || "0";
+        perDay = parseFloat(val) || 0;
+      }
+    }
+    const total = perDay * daysVal;
+    incomeDisplay.value = formatCurrency(total);
+  }
+
+  card.dataset.modifiedEl = modifiedELDisplay;
+}
+
+function formatCurrency(value) {
+  if (currentSystem === PF2) {
+    return `${value} gp`;
+  } else {
+    const intVal = Math.round(value);
+    return `${intVal} cr`;
+  }
+}
+
+// ============================================================
+//  SUMMARY
+// ============================================================
+
+function initSummaryCopy() {
+  const btn = document.getElementById("copy-summary-btn");
+  btn.addEventListener("click", () => {
+    const text = document.getElementById("summary-output").textContent;
+    if (!text.trim()) return;
+    navigator.clipboard.writeText(text).then(() => {
+      showCopyBanner();
+    });
+  });
+}
+
+function showCopyBanner() {
+  const banner = document.getElementById("copy-banner");
+  banner.classList.remove("hidden");
+  banner.classList.add("visible");
+  setTimeout(() => {
+    banner.classList.remove("visible");
+    setTimeout(() => banner.classList.add("hidden"), 400);
+  }, 3000);
+}
+
+function updateSummary() {
+  const date = document.getElementById("dateInput").value || "";
+  const scenario = document.getElementById("scenarioInput").value || "";
+  const rows = document.querySelectorAll(".character-card");
+
+  const lines = [];
+  lines.push(`${date} ${scenario}`.trim());
+
+  rows.forEach((card) => {
+    const index = card.dataset.index;
+    const nameInput = card.querySelector(`#char-name-${index}`);
+    const levelInput = card.querySelector(`#char-level-${index}`);
+    const daysInput = card.querySelector(`#char-days-${index}`);
+    const incomeDisplay = card.querySelector(`#char-income-${index}`);
+    const hhstInput = card.querySelector(`#char-hhst-${index}`);
+
+    const profInputs = card.querySelectorAll(`input[name="char-prof-${index}"]`);
+    const resultInputs = card.querySelectorAll(`input[name="char-result-${index}"]`);
+
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    const levelVal = parseInt(levelInput.value || "0", 10);
+    const daysVal = parseInt(daysInput.value || "0", 10);
+    const prof = Array.from(profInputs).find((i) => i.checked)?.value || null;
+    const resultVal = Array.from(resultInputs).find((i) => i.checked)?.value || null;
+
+    const levelErr = document.querySelector(`.field-error[data-error-for="${levelInput.id}"]`)?.textContent;
+    const daysErr = document.querySelector(`.field-error[data-error-for="${daysInput.id}"]`)?.textContent;
+
+    if (!levelVal || !daysVal || !prof || !resultVal || levelErr || daysErr) {
+      return;
+    }
+
+    const modifiedELDisplay = card.dataset.modifiedEl || "—";
+    const incomeText = incomeDisplay.value || "";
+
+    let resultLabel = "";
+    if (resultVal === "crit-fail") resultLabel = "Crit Fail";
+    else if (resultVal === "fail") resultLabel = "Fail";
+    else if (resultVal === "success") resultLabel = "Success";
+    else if (resultVal === "crit-success") resultLabel = "Crit Success";
+
+    let line = `${name}: ${resultLabel}, EL = ${modifiedELDisplay}`;
+    if (currentSystem === PF2 && hhstInput && hhstInput.checked) {
+      line += " (HHST)";
+    }
+
+    const parts = incomeText.split(" ");
+    const amount = parts[0] || "0";
+    const unit = parts[1] || (currentSystem === PF2 ? "gp" : "cr");
+    line += `     +${amount} ${unit}`;
+
+    lines.push(line);
+  });
+
+  document.getElementById("summary-output").textContent = lines.join("\n");
+}
+
+// ============================================================
+//  APPENDIX
+// ============================================================
+
+function initAppendixToggle() {
+  const btn = document.getElementById("appendix-toggle");
+  const content = document.getElementById("appendix-content");
+  btn.addEventListener("click", () => {
+    const isHidden = content.classList.contains("hidden");
+    if (isHidden) {
+      content.classList.remove("hidden");
+      btn.textContent = "Hide Appendix";
+    } else {
+      content.classList.add("hidden");
+      btn.textContent = "Show Appendix";
+    }
+  });
+}
+
+function renderDowntimeTable() {
+  const container = document.getElementById("downtime-table-container");
+  container.innerHTML = "";
+  const tableData = currentSystem === PF2 ? pf2Table : sf2Table;
+  if (!tableData) return;
+
+  const table = document.createElement("table");
+  table.className = "downtime-table";
+
+  const thead = document.createElement("thead");
+  const trHead = document.createElement("tr");
+  tableData.headers.forEach((h) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+
+  const tbody = document.createElement("tbody");
+  tableData.rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tableData.headers.forEach((h) => {
+      const td = document.createElement("td");
+      td.textContent = row[h] || "";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  table.append(thead, tbody);
+  container.appendChild(table);
+}
