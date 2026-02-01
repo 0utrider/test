@@ -14,7 +14,8 @@
   --banner-copy-light-bg: #2e7d32;
   --banner-copy-fg: #ffffff;
 
-  --card-bg-dark: rgba(24, 28, 36, 0.9);
+  /* Lightened card background for Dark Mode */
+  --card-bg-dark: #3b434d;
   --card-bg-light: rgba(255, 255, 255, 0.9);
 
   --overlay-color: rgba(0, 0, 0, 0.45);
@@ -74,12 +75,6 @@ body.no-background #overlay-layer {
   display: none;
 }
 
-/* Static color elements (title + toggles) */
-
-.static-color {
-  color: var(--fg-dark) !important;
-}
-
 /* App layout */
 
 #app {
@@ -134,69 +129,13 @@ body.theme-light .card {
   margin-top: 0;
 }
 
-/* Forms */
+/* System toggle inside General Input */
 
-.form-row {
+.system-toggle-container {
   display: flex;
-  flex-direction: column;
-  margin-bottom: 0.75rem;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
 }
-
-.form-row label {
-  margin-bottom: 0.25rem;
-  font-weight: 600;
-}
-
-input[type="text"],
-input[type="number"],
-input[type="date"] {
-  padding: 0.4rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(0, 0, 0, 0.2);
-  color: inherit;
-  font-family: "PT Sans", sans-serif;
-}
-
-body.theme-light input[type="text"],
-body.theme-light input[type="number"],
-body.theme-light input[type="date"] {
-  background-color: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.15);
-}
-
-input[readonly] {
-  opacity: 0.8;
-}
-
-/* Placeholder for ISO date */
-input[type="date"]::placeholder {
-  color: #999;
-}
-
-/* Narrow fields */
-
-.level-input {
-  width: 3.2rem;
-}
-
-.days-input {
-  width: 3.2rem;
-}
-
-.income-display {
-  width: 6rem;
-}
-
-/* Error messages */
-
-.field-error {
-  color: #ff8a80;
-  font-size: 0.8rem;
-  min-height: 1em;
-}
-
-/* System toggle */
 
 .system-toggle {
   display: inline-flex;
@@ -225,6 +164,10 @@ body.theme-light .system-toggle {
   background-color: var(--accent-blue);
   color: #ffffff !important;
   border-radius: 999px;
+}
+
+.system-toggle span {
+  color: inherit;
 }
 
 /* Theme toggle */
@@ -265,32 +208,69 @@ body.theme-light .system-toggle {
   font-size: 0.9rem;
 }
 
-/* Character rows */
+/* Forms */
 
-#character-rows {
+.form-row {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
+.form-row label {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"] {
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  font-family: "PT Sans", sans-serif;
+}
+
+body.theme-light input[type="text"],
+body.theme-light input[type="number"],
+body.theme-light input[type="date"] {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Narrow fields */
+
+.level-input {
+  width: 3.2rem;
+}
+
+.days-input {
+  width: 3.2rem;
+}
+
+.income-display {
+  width: 6rem;
+}
+
+/* Error messages */
+
+.field-error {
+  color: #ff8a80;
+  font-size: 0.8rem;
+  min-height: 1em;
+}
+
+/* Character cards */
+
 .character-card {
+  background-color: var(--card-bg-dark);
   border-radius: 6px;
   padding: 0.75rem;
-  background-color: rgba(0, 0, 0, 0.25);
 }
 
 body.theme-light .character-card {
-  background-color: rgba(255, 255, 255, 0.7);
-}
-
-.character-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.character-header .form-row {
-  flex: 1 1 120px;
+  background-color: var(--card-bg-light);
 }
 
 /* DC styling */
@@ -315,18 +295,18 @@ body.theme-light .character-middle span {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Footer layout: single line */
+/* Footer layout */
 
 .character-footer {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
-  gap: 0.75rem;
+  align-items: center; /* fixed */
+  gap: 1rem;
   flex-wrap: nowrap;
 }
 
 .character-footer .form-row {
-  flex: 0 0 auto;
+  flex: 1 1 0; /* spread evenly */
 }
 
 /* Radio groups */
@@ -407,6 +387,7 @@ body.theme-light .radio-pill .x-mark {
   align-items: center;
   gap: 0.4rem;
   font-family: "PT Sans", sans-serif;
+  cursor: pointer;
 }
 
 .checkbox-row input {
@@ -592,70 +573,4 @@ body.theme-light .downtime-table td {
   .summary-output {
     font-size: 0.8rem;
   }
-}
-
-/* Fallback calendar popup */
-
-.calendar-popup {
-  position: absolute;
-  z-index: 50;
-  background-color: var(--card-bg-dark);
-  color: inherit;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  padding: 0.5rem;
-  min-width: 220px;
-  font-family: "PT Sans", sans-serif;
-}
-
-body.theme-light .calendar-popup {
-  background-color: var(--card-bg-light);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
-}
-
-.calendar-title {
-  font-weight: 600;
-}
-
-.cal-nav {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0 0.25rem;
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.15rem;
-  font-size: 0.8rem;
-}
-
-.calendar-day-header {
-  text-align: center;
-  font-weight: 600;
-}
-
-.calendar-empty {
-  height: 1.5rem;
-}
-
-.calendar-date {
-  text-align: center;
-  padding: 0.2rem 0;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.calendar-date:hover {
-  background-color: var(--accent-blue-soft);
 }

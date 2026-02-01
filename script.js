@@ -214,7 +214,7 @@ function createCharacterRow(index) {
   const hhstRow = document.createElement("div");
   hhstRow.className = "form-row hhst-row";
   const hhstLabel = document.createElement("label");
-  hhstLabel.textContent = "HHST Boon?";
+  hhstLabel.textContent = "HHST Boon";
   const hhstWrap = document.createElement("div");
   hhstWrap.className = "checkbox-row";
   const hhstInput = document.createElement("input");
@@ -224,6 +224,11 @@ function createCharacterRow(index) {
   hhstBox.className = "checkbox-custom";
   hhstWrap.title = "Horizon Hunters: Storied Talent";
   hhstWrap.append(hhstInput, hhstBox);
+  hhstWrap.addEventListener("click", () => {
+  hhstInput.checked = !hhstInput.checked;
+  recalcRow(card);
+  updateSummary();
+  });
   hhstInput.addEventListener("change", () => {
     recalcRow(card);
     updateSummary();
@@ -453,6 +458,15 @@ function recalcRow(card) {
   dcSpan.style.color = "var(--dc-default)";
   incomeDisplay.value = "";
   let modifiedELDisplay = "—";
+
+  // Show DC as soon as Name + Level are valid
+  if (name && levelVal && !levelErr) {
+  const table = currentSystem === PF2 ? pf2Table : sf2Table;
+  const rowForInitial = table.rows.find((r) => parseInt(r.EL, 10) === initialEL);
+  if (rowForInitial && rowForInitial.DC && rowForInitial.DC !== "-") {
+    dcSpan.textContent = `DC: ${rowForInitial.DC}`;
+    }
+  }
 
   const name = nameInput.value.trim();
   if (!name) {
