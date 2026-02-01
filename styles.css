@@ -18,6 +18,13 @@
   --card-bg-light: rgba(255, 255, 255, 0.9);
 
   --overlay-color: rgba(0, 0, 0, 0.45);
+
+  /* DC colors */
+  --dc-default: #b38cff;
+  --dc-crit-fail: #ff4a4a;
+  --dc-fail: #ff9c3d;
+  --dc-success: #4caf50;
+  --dc-crit-success: #42a5ff;
 }
 
 /* Base */
@@ -67,6 +74,12 @@ body.no-background #overlay-layer {
   display: none;
 }
 
+/* Static color elements (title + toggles) */
+
+.static-color {
+  color: var(--fg-dark) !important;
+}
+
 /* App layout */
 
 #app {
@@ -99,12 +112,6 @@ body.no-background #overlay-layer {
   font-family: "Cinzel", serif;
   font-size: 1.4rem;
   margin: 0;
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
 }
 
 /* Cards */
@@ -162,6 +169,25 @@ input[readonly] {
   opacity: 0.8;
 }
 
+/* Placeholder for ISO date */
+input[type="date"]::placeholder {
+  color: #999;
+}
+
+/* Narrow fields */
+
+.level-input {
+  width: 3.2rem;
+}
+
+.days-input {
+  width: 3.2rem;
+}
+
+.income-display {
+  width: 6rem;
+}
+
 /* Error messages */
 
 .field-error {
@@ -197,7 +223,7 @@ body.theme-light .system-toggle {
 
 .system-toggle input:checked + span {
   background-color: var(--accent-blue);
-  color: #ffffff;
+  color: #ffffff !important;
   border-radius: 999px;
 }
 
@@ -267,36 +293,43 @@ body.theme-light .character-card {
   flex: 1 1 120px;
 }
 
+/* DC styling */
+
 .character-middle {
   margin-top: 0.5rem;
   text-align: center;
   font-family: "PT Sans", sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .character-middle span {
   display: inline-block;
-  padding: 0.25rem 0.5rem;
+  padding: 0.3rem 0.6rem;
   border-radius: 999px;
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.25);
+  color: var(--dc-default);
+  font-weight: 600;
 }
 
 body.theme-light .character-middle span {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* Footer layout: single line */
+
 .character-footer {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
 }
 
 .character-footer .form-row {
-  flex: 1 1 120px;
+  flex: 0 0 auto;
 }
 
-/* Proficiency and result radio groups */
+/* Radio groups */
 
 .radio-group {
   display: flex;
@@ -323,10 +356,6 @@ body.theme-light .radio-pill {
 
 .radio-pill input {
   display: none;
-}
-
-.radio-pill span.label-text {
-  margin-left: 0.25rem;
 }
 
 .radio-pill .x-mark {
@@ -371,7 +400,7 @@ body.theme-light .radio-pill .x-mark {
   cursor: not-allowed;
 }
 
-/* Checkbox (HHST) */
+/* HHST checkbox */
 
 .checkbox-row {
   display: flex;

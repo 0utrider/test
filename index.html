@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Society Downtime Income Calculator</title>
+  <title>Organized Play Downtime Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Google Fonts -->
@@ -10,57 +10,72 @@
 
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body class="theme-dark">
   <div id="background-layer"></div>
   <div id="overlay-layer"></div>
 
   <div id="app">
+
+    <!-- HEADER -->
     <header class="app-header">
       <div class="title-block">
         <img src="img/icon-logo.webp" alt="Downtime Icon" class="title-icon" onerror="this.style.display='none';" />
-        <h1 class="app-title">Society Downtime Income Calculator</h1>
+        <h1 class="app-title static-color">Organized Play Downtime Calculator</h1>
       </div>
 
       <div class="header-controls">
-        <div class="system-toggle">
+
+        <!-- PF2 / SF2 Toggle -->
+        <div class="system-toggle static-color">
           <label>
             <input type="radio" name="system" value="pf2" checked />
-            <span>PF2</span>
+            <span class="static-color">PF2</span>
           </label>
           <label>
             <input type="radio" name="system" value="sf2" />
-            <span>SF2</span>
+            <span class="static-color">SF2</span>
           </label>
         </div>
 
+        <!-- Light Mode Toggle -->
         <div class="theme-toggle">
           <label class="toggle-label">
             <input type="checkbox" id="lightModeToggle" />
             <span class="toggle-custom"></span>
-            <span class="toggle-text">Light Mode</span>
+            <span class="toggle-text static-color">Light Mode</span>
           </label>
         </div>
+
       </div>
     </header>
 
+    <!-- ERROR BANNER -->
+    <div id="error-banner" class="banner banner-error hidden">
+      Critical reference file missing. Please check downtime CSV files and reload.
+    </div>
+
+    <!-- COPY BANNER -->
+    <div id="copy-banner" class="banner banner-copy hidden">
+      Summary copied to clipboard.
+    </div>
+
     <main>
-      <!-- Critical error banner -->
-      <div id="error-banner" class="banner banner-error hidden">
-        Critical reference file missing. Please check downtime CSV files and reload.
-      </div>
 
-      <!-- Copy confirmation banner -->
-      <div id="copy-banner" class="banner banner-copy hidden">
-        Summary copied to clipboard.
-      </div>
-
-      <!-- General Input -->
+      <!-- GENERAL INPUT -->
       <section class="card" id="general-input">
         <h2>General Input</h2>
+
         <div class="form-row">
           <label for="dateInput">Date</label>
-          <input type="date" id="dateInput" />
+          <input
+            type="date"
+            id="dateInput"
+            pattern="\d{4}-\d{2}-\d{2}"
+            placeholder="yyyy-mm-dd"
+          />
         </div>
+
         <div class="form-row">
           <label for="scenarioInput">Scenario Number</label>
           <input type="text" id="scenarioInput" maxlength="100" />
@@ -68,20 +83,20 @@
         </div>
       </section>
 
-      <!-- Characters Input -->
+      <!-- CHARACTERS INPUT -->
       <section class="card" id="characters-input">
         <h2>Characters</h2>
         <div id="character-rows"></div>
       </section>
 
-      <!-- Summary -->
+      <!-- SUMMARY -->
       <section class="card" id="summary-section">
         <h2>Summary</h2>
         <pre id="summary-output" class="summary-output"></pre>
         <button id="copy-summary-btn" class="btn" title="Copy to Clipboard">📋 Copy</button>
       </section>
 
-      <!-- Appendix -->
+      <!-- APPENDIX -->
       <section class="card" id="appendix-section">
         <button id="appendix-toggle" class="btn btn-secondary">
           Show Appendix
@@ -114,8 +129,10 @@
             <h3>Downtime Income Table</h3>
             <div id="downtime-table-container"></div>
           </div>
+
         </div>
       </section>
+
     </main>
   </div>
 
