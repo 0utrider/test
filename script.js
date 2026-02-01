@@ -107,7 +107,8 @@ function initDateInput() {
   const isoToday = `${yyyy}-${mm}-${dd}`;
 
   dateInput.placeholder = isoToday;
-  dateInput.value = isoToday;
+  dateInput.setAttribute("value", isoToday);
+  dateInput.value = isoToday; // keep both
 }
 
 // ============================================================

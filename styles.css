@@ -305,8 +305,8 @@ body.theme-light .character-middle span {
   flex-wrap: nowrap;
 }
 
-.character-footer .form-row {
-  flex: 1 1 0; /* spread evenly */
+.character-footer > .form-row {
+  flex: 1 1 0;
 }
 
 /* Radio groups */
@@ -573,4 +573,20 @@ body.theme-light .downtime-table td {
   .summary-output {
     font-size: 0.8rem;
   }
+}
+
+.app-title {
+  color: var(--fg-dark) !important;
+}
+
+body.theme-light .app-title {
+  color: var(--fg-dark) !important; /* stays same in both modes */
+}
+
+.theme-toggle .toggle-text {
+  color: var(--fg-dark) !important;
+}
+
+body.theme-light .theme-toggle .toggle-text {
+  color: var(--fg-dark) !important;
 }
