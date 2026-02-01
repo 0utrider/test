@@ -222,17 +222,16 @@ function createCharacterRow(index) {
   hhstInput.id = `char-hhst-${index}`;
   const hhstBox = document.createElement("span");
   hhstBox.className = "checkbox-custom";
-  hhstWrap.title = "Horizon Hunters: Storied Talent";
+
   hhstWrap.append(hhstInput, hhstBox);
+
+  // Entire row clickable
   hhstWrap.addEventListener("click", () => {
-  hhstInput.checked = !hhstInput.checked;
-  recalcRow(card);
-  updateSummary();
-  });
-  hhstInput.addEventListener("change", () => {
+    hhstInput.checked = !hhstInput.checked;
     recalcRow(card);
     updateSummary();
   });
+
   hhstRow.append(hhstLabel, hhstWrap);
 
   header.append(nameRow, levelRow, profRow, hhstRow);
@@ -248,7 +247,6 @@ function createCharacterRow(index) {
   // FOOTER
   const footer = document.createElement("div");
   footer.className = "character-footer";
-
   // Result
   const resultRow = document.createElement("div");
   resultRow.className = "form-row";
@@ -256,15 +254,18 @@ function createCharacterRow(index) {
   resultLabel.textContent = "Result";
   const resultGroup = document.createElement("div");
   resultGroup.className = "radio-group";
+
   const resultOptions = [
     { value: "crit-fail", label: "Crit Fail" },
     { value: "fail", label: "Fail" },
     { value: "success", label: "Success" },
     { value: "crit-success", label: "Crit Success" }
   ];
+
   resultOptions.forEach((opt) => {
     const pill = document.createElement("label");
     pill.className = "radio-pill";
+
     const input = document.createElement("input");
     input.type = "radio";
     input.name = `char-result-${index}`;
@@ -273,14 +274,18 @@ function createCharacterRow(index) {
       recalcRow(card);
       updateSummary();
     });
+
     const x = document.createElement("span");
     x.className = "x-mark";
+
     const text = document.createElement("span");
     text.className = "label-text";
     text.textContent = opt.label;
+
     pill.append(input, x, text);
     resultGroup.appendChild(pill);
   });
+
   const resultError = document.createElement("div");
   resultError.className = "field-error";
   resultError.dataset.errorFor = `char-result-${index}`;
@@ -305,6 +310,7 @@ function createCharacterRow(index) {
     recalcRow(card);
     updateSummary();
   });
+
   const daysError = document.createElement("div");
   daysError.className = "field-error";
   daysError.dataset.errorFor = daysInput.id;
@@ -327,16 +333,13 @@ function createCharacterRow(index) {
 
   card.append(header, middle, footer);
   return card;
-  footer.append(resultRow, daysRow, incomeRow);
-
-  card.append(header, middle, footer);
-  return card;
 }
 
 function handleRowVisibility(index) {
   const container = document.getElementById("character-rows");
   const currentRow = container.querySelector(`.character-card[data-index="${index}"]`);
   const nameInput = currentRow.querySelector(`#char-name-${index}`);
+
   if (nameInput.value.trim() !== "" && index < 6) {
     const nextRow = container.querySelector(`.character-card[data-index="${index + 1}"]`);
     if (nextRow && nextRow.style.display === "none") {
@@ -376,6 +379,7 @@ function validateLevel(input) {
     return;
   }
   const val = parseInt(input.value, 10);
+
   if (currentSystem === PF2) {
     if (val < 1 || val > 20) setFieldError(id, "Level must be between 1 and 20.");
     else setFieldError(id, "");
@@ -392,6 +396,7 @@ function validateDays(input) {
     return;
   }
   const val = parseInt(input.value, 10);
+
   if (val < 1 || val > 24) setFieldError(id, "Days must be between 1 and 24.");
   else setFieldError(id, "");
 }
@@ -434,7 +439,6 @@ function showErrorBanner() {
   banner.classList.remove("hidden");
   banner.classList.add("visible");
 }
-
 // ============================================================
 //  CALCULATIONS
 // ============================================================
@@ -459,15 +463,6 @@ function recalcRow(card) {
   incomeDisplay.value = "";
   let modifiedELDisplay = "—";
 
-  // Show DC as soon as Name + Level are valid
-  if (name && levelVal && !levelErr) {
-  const table = currentSystem === PF2 ? pf2Table : sf2Table;
-  const rowForInitial = table.rows.find((r) => parseInt(r.EL, 10) === initialEL);
-  if (rowForInitial && rowForInitial.DC && rowForInitial.DC !== "-") {
-    dcSpan.textContent = `DC: ${rowForInitial.DC}`;
-    }
-  }
-
   const name = nameInput.value.trim();
   if (!name) {
     card.dataset.modifiedEl = modifiedELDisplay;
@@ -482,13 +477,17 @@ function recalcRow(card) {
   const levelErr = document.querySelector(`.field-error[data-error-for="${levelInput.id}"]`)?.textContent;
   const daysErr = document.querySelector(`.field-error[data-error-for="${daysInput.id}"]`)?.textContent;
 
-  if (!levelVal || !daysVal || !prof || !result || levelErr || daysErr) {
+  // If level invalid, stop early
+  if (!levelVal || levelErr) {
     card.dataset.modifiedEl = modifiedELDisplay;
     return;
   }
 
-  // initialEL
+  // ------------------------------------------------------------
+  // INITIAL EL CALCULATION
+  // ------------------------------------------------------------
   let initialEL = 0;
+
   if (currentSystem === PF2) {
     if (hhstInput && hhstInput.checked) {
       initialEL = levelVal;
@@ -504,14 +503,26 @@ function recalcRow(card) {
   const table = currentSystem === PF2 ? pf2Table : sf2Table;
   const rowForInitial = table.rows.find((r) => parseInt(r.EL, 10) === initialEL);
 
+  // ------------------------------------------------------------
+  // SHOW DC AS SOON AS NAME + LEVEL ARE VALID
+  // ------------------------------------------------------------
   if (rowForInitial && rowForInitial.DC && rowForInitial.DC !== "-") {
     dcSpan.textContent = `DC: ${rowForInitial.DC}`;
-  } else {
-    dcSpan.textContent = "DC: —";
   }
 
-  // modifiedEL
+  // ------------------------------------------------------------
+  // If no result yet, stop here (DC is already shown)
+  // ------------------------------------------------------------
+  if (!prof || !result || daysErr || !daysVal) {
+    card.dataset.modifiedEl = modifiedELDisplay;
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // MODIFIED EL BASED ON RESULT
+  // ------------------------------------------------------------
   let modifiedEL = null;
+
   if (result === "crit-fail") {
     modifiedEL = null;
   } else if (result === "fail" || result === "success") {
@@ -521,7 +532,10 @@ function recalcRow(card) {
     if (currentSystem === PF2 && modifiedEL > 21) modifiedEL = 21;
     if (currentSystem === SF2 && modifiedEL > 10) modifiedEL = 10;
   }
-  // DC color by result
+
+  // ------------------------------------------------------------
+  // DC COLORING BASED ON RESULT
+  // ------------------------------------------------------------
   if (result === "crit-fail") {
     dcSpan.style.color = "var(--dc-crit-fail)";
   } else if (result === "fail") {
@@ -534,13 +548,18 @@ function recalcRow(card) {
     dcSpan.style.color = "var(--dc-default)";
   }
 
+  // ------------------------------------------------------------
+  // INCOME CALCULATION
+  // ------------------------------------------------------------
   if (modifiedEL === null) {
     modifiedELDisplay = "—";
     incomeDisplay.value = formatCurrency(0);
   } else {
     modifiedELDisplay = String(modifiedEL);
+
     const rowForModified = table.rows.find((r) => parseInt(r.EL, 10) === modifiedEL);
     let perDay = 0;
+
     if (rowForModified) {
       if (result === "fail") {
         perDay = parseFloat(rowForModified.Fail || "0") || 0;
@@ -550,6 +569,7 @@ function recalcRow(card) {
         perDay = parseFloat(val) || 0;
       }
     }
+
     const total = perDay * daysVal;
     incomeDisplay.value = formatCurrency(total);
   }
@@ -565,7 +585,6 @@ function formatCurrency(value) {
     return `${intVal} cr`;
   }
 }
-
 // ============================================================
 //  SUMMARY
 // ============================================================
@@ -575,6 +594,7 @@ function initSummaryCopy() {
   btn.addEventListener("click", () => {
     const text = document.getElementById("summary-output").textContent;
     if (!text.trim()) return;
+
     navigator.clipboard.writeText(text).then(() => {
       showCopyBanner();
     });
@@ -585,6 +605,7 @@ function showCopyBanner() {
   const banner = document.getElementById("copy-banner");
   banner.classList.remove("hidden");
   banner.classList.add("visible");
+
   setTimeout(() => {
     banner.classList.remove("visible");
     setTimeout(() => banner.classList.add("hidden"), 400);
@@ -601,6 +622,7 @@ function updateSummary() {
 
   rows.forEach((card) => {
     const index = card.dataset.index;
+
     const nameInput = card.querySelector(`#char-name-${index}`);
     const levelInput = card.querySelector(`#char-level-${index}`);
     const daysInput = card.querySelector(`#char-days-${index}`);
@@ -635,6 +657,7 @@ function updateSummary() {
     else if (resultVal === "crit-success") resultLabel = "Crit Success";
 
     let line = `${name}: ${resultLabel}, EL = ${modifiedELDisplay}`;
+
     if (currentSystem === PF2 && hhstInput && hhstInput.checked) {
       line += " (HHST)";
     }
@@ -642,6 +665,7 @@ function updateSummary() {
     const parts = incomeText.split(" ");
     const amount = parts[0] || "0";
     const unit = parts[1] || (currentSystem === PF2 ? "gp" : "cr");
+
     line += `     +${amount} ${unit}`;
 
     lines.push(line);
@@ -649,6 +673,7 @@ function updateSummary() {
 
   document.getElementById("summary-output").textContent = lines.join("\n");
 }
+
 // ============================================================
 //  APPENDIX
 // ============================================================
@@ -656,8 +681,10 @@ function updateSummary() {
 function initAppendixToggle() {
   const btn = document.getElementById("appendix-toggle");
   const content = document.getElementById("appendix-content");
+
   btn.addEventListener("click", () => {
     const isHidden = content.classList.contains("hidden");
+
     if (isHidden) {
       content.classList.remove("hidden");
       btn.textContent = "Hide Appendix";
@@ -671,6 +698,7 @@ function initAppendixToggle() {
 function renderDowntimeTable() {
   const container = document.getElementById("downtime-table-container");
   container.innerHTML = "";
+
   const tableData = currentSystem === PF2 ? pf2Table : sf2Table;
   if (!tableData) return;
 
@@ -679,21 +707,26 @@ function renderDowntimeTable() {
 
   const thead = document.createElement("thead");
   const trHead = document.createElement("tr");
+
   tableData.headers.forEach((h) => {
     const th = document.createElement("th");
     th.textContent = h;
     trHead.appendChild(th);
   });
+
   thead.appendChild(trHead);
 
   const tbody = document.createElement("tbody");
+
   tableData.rows.forEach((row) => {
     const tr = document.createElement("tr");
+
     tableData.headers.forEach((h) => {
       const td = document.createElement("td");
       td.textContent = row[h] || "";
       tr.appendChild(td);
     });
+
     tbody.appendChild(tr);
   });
 
@@ -701,9 +734,4 @@ function renderDowntimeTable() {
   container.appendChild(table);
 }
 
-// ============================================================
-//  END OF FILE MARKER (for assembly verification)
-// ============================================================
-
-// When assembling all 5 parts, the final file should end with:
-//   -->  // END OF FILE
+// END OF FILE
